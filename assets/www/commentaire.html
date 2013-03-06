@@ -1,0 +1,43 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Commentaire</title>
+
+<link rel="stylesheet" type="text/css" href="css/pcc.css" />
+<script type="text/javascript" charset="utf-8" src="js/cordova-1.5.0.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/jquery-1.5.2.min.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/pcc.js"></script>
+<script type="text/javascript" charset="utf-8">
+
+</script>
+</head>
+<body>
+<header>
+  <a href="index.html"><img src="img/header.png"></a>
+</header>
+
+<a href="commentaires.html" id="back">BACK</a>
+
+<h1></h1>
+<h2>sur <span></span></h2>
+<h3>par <span></span></h3>
+
+<div id="commentaire">
+
+</div>
+
+<script>
+  idcomment = window.localStorage.getItem("param_commentaire")
+  display_commentaire(idcomment.replace(/[lb#]/g, ''));
+  
+  document.addEventListener("deviceready", DeviceReady, false);
+
+  function DeviceReady()
+  {
+     document.addEventListener("menubutton", go_menu, false);
+  }  
+</script>
+
+</body>
+</html>

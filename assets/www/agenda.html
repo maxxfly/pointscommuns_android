@@ -1,0 +1,199 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Agenda</title>
+
+<link rel="stylesheet" type="text/css" href="css/pcc.css" />
+<script type="text/javascript" charset="utf-8" src="js/cordova-1.5.0.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/jquery-1.5.2.min.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/pcc.js"></script>
+<script type="text/javascript" charset="utf-8">
+document.addEventListener("deviceready", brocoli, false);
+
+/*window.alert('ok2');*/
+var db;
+var json_events; 
+var last_position; 
+var R = 6371; // km
+
+function brocoli()
+{
+  document.addEventListener("menubutton", go_menu, false);
+
+  db = window.openDatabase("pointscommuns", "1.0", "pointscommuns", 200000)
+  
+  agenda_unixdate = window.localStorage.getItem('agenda_unixdate');
+  // launch_ajax();
+   
+  if((!agenda_unixdate || agenda_unixdate < new Date().getTime() - delay_update ) && (!navigator.network || navigator.network.connection.type != "NONE"))
+  {  
+    launch_ajax();
+  }
+  else
+  {   
+    db.transaction(function(tx) 
+                   {
+                     tx.executeSql('SELECT count(*) FROM agenda');
+                   },
+                   function()
+                   {
+                    window.alert('Vous etes pas connecté a internet');
+                   },
+                   loadDB);
+  }
+}
+
+function launch_ajax()
+{
+    display_waiting('Chargement des evenements');
+    $.ajax({ url: url_agenda +"?callback=create_table",
+               jsonp: true,
+               dataType: "jsonp"
+              });
+}
+
+function create_table(d)
+{
+  hide_waiting();
+  json_events = d;
+  db.transaction(populateDB, errorCB, loadDB);  
+}
+
+function populateDB(tx)
+{
+  tx.executeSql('DROP TABLE IF EXISTS agenda');
+  tx.executeSql('CREATE TABLE IF NOT EXISTS agenda (id unique, titre, pseudo, idsexe INTEGER, type, date INTEGER, date_fin INTEGER, heure, infos_complementaires, nom_lieu, adresse_lieu, ville_lieu, pays_lieu, pos_x REAL, pos_y REAL, distance REAL)');
+  
+  for(i=0; i < json_events.length; i++)
+  {
+  /*  $('#info').append(json_events[i].titre +"<br>");*/
+    tx.executeSql('INSERT INTO agenda (id, titre, pseudo, idsexe, pos_x, pos_y) VALUES (?,?,?,?,?,?)', 
+                  [json_events[i].id_evenement,
+                   json_events[i].titre,
+                   json_events[i].pseudo,
+                   json_events[i].idsexe,
+                   json_events[i].pos_x,
+                   json_events[i].pos_y]
+                  );
+  }
+  
+  window.localStorage.setItem('agenda_unixdate', new Date().getTime());
+}
+
+function errorCB(err)
+{
+  window.alert('Error processing SQL: '+ err.message);
+}
+
+function errorGeo(err)
+{
+  window.alert('Error geo '+ err.message);
+}
+
+function loadDB()
+{
+  db.transaction( function (tx) { 
+                      tx.executeSql('SELECT * FROM agenda ORDER BY distance', [],
+                                    display_event, errorCB);
+                              }, 
+                  errorCB
+    );
+}
+
+function display_event(tx, results)
+{
+/*
+  console.log('launch display_event');
+  console.log(tx);
+  console.log(results);
+  window.alert(tx);
+  window.alert(results);
+*/  
+
+  $('#event_avec_pos').empty();
+  $('#event_sans_pos').empty();
+
+  for(var i = 0 ; i < results.rows.length; i++)
+  {
+    $( (display_distance( results.rows.item(i).pos_x, results.rows.item(i).pos_y, results.rows.item(i).distance) == "inconnu") ? '#event_sans_pos' : '#event_avec_pos').append('<article><h2>'+ results.rows.item(i).titre +'</h2>Proposé par <span class="pseudo_'+ results.rows.item(i).idsexe +'">'+ results.rows.item(i).pseudo +'</span><br/>Distance : '+ display_distance( results.rows.item(i).pos_x, results.rows.item(i).pos_y, results.rows.item(i).distance) +'</article>');
+  }
+
+  if(!last_position)
+  {
+    display_waiting('En attente de récuperation de votre position');
+    navigator.geolocation.getCurrentPosition(update_geo, errorGeo);
+  }
+}
+
+function update_geo(position)
+{
+  hide_waiting();
+  last_position = position;
+
+  db.transaction(function(tx) { 
+                  tx.executeSql('SELECT * from agenda', [], update_distance_events, errorCB);  
+                }
+  );
+}
+
+function update_distance_events(tx, results)
+{
+  db.transaction(function(tx2) { 
+    for(var i=0; i < results.rows.length; i++)
+    {
+      tx2.executeSql('UPDATE agenda SET distance = ? WHERE id= ?',
+                    [calculate_distance(last_position.coords.longitude, last_position.coords.latitude, 
+                     results.rows.item(i).pos_x, results.rows.item(i).pos_y), 
+                     results.rows.item(i).id]
+         ) ;
+    }
+  }, errorCB,  loadDB );
+
+}
+
+
+function calculate_distance(lon1, lat1, lon2, lat2)
+{
+  var dLat = toRad(lat2-lat1);
+  var dLon = toRad(lon2-lon1);
+  var lat1 = toRad(lat1);
+  var lat2 = toRad(lat2);
+
+  var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.sin(dLon/2) * Math.sin(dLon/2) * Math.cos(lat1) * Math.cos(lat2); 
+  var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+  return R * c;
+}
+
+function toRad(degrees) {
+    return degrees * Math.PI / 180;
+}
+
+function display_distance(x, y, d)
+{
+  if(!x || !y || !d)
+  {
+    return "inconnu";
+  }
+  else
+  {
+    return Math.floor(d * 10)/10 +" km";
+  }
+}
+
+</script>
+</head>
+<body>
+<div id="waiting"><p></p><div></div></div>
+ <header>
+  <a href="index.html"><img src="img/header.png"></a>
+</header>
+<a href="index.html" id="back">MENU</a>
+
+<h1>AGENDA</h1>
+<div id="event_avec_pos"></div>
+<div id="event_sans_pos"></div>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset=utf-8>
+<title>Commentaires</title>
+
+<link rel="stylesheet" type="text/css" href="css/pcc.css" />
+<script type="text/javascript" charset="utf-8" src="js/cordova-1.5.0.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/jquery-1.5.2.min.js"></script>
+<script type="text/javascript" charset="utf-8" src="js/pcc.js"></script>
+<script type="text/javascript" charset="utf-8">
+
+document.addEventListener("deviceready", load_comment, false);
+
+function load_comment()
+{  
+  document.addEventListener("menubutton", go_menu, false);
+  
+  if(  window.localStorage.getItem("tab_comment") == "best_tab")
+  {
+    change_tab('best_tab');
+  }
+  else
+  {
+    load_last_comment();
+  }
+}
+
+
+</script>
+</head>
+<body>
+<div id="waiting"><p></p><div></div></div>
+<header>
+  <a href="index.html"><img src="img/header.png"></a>
+</header>
+<a href="index.html" id="back">MENU</a>
+
+<h1>COMMENTAIRES</h1>
+<ul class="onglets">
+  <li class="selected" id="new_tab"><a href="javascript: change_tab('new_tab');">Les + récents</a></li>
+  <li id="best_tab"><a href="javascript: change_tab('best_tab');">Les meilleurs</a></li>
+</ul>
+<div id="commentaires">
+
+</div>
+</body>
+</html>
